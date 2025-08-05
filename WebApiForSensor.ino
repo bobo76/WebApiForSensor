@@ -6,19 +6,17 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
+#include "arduino_secrets.h"
 #include "DHT.h"
 #include "webpage.h"
 
 #define DHTPIN 5       // Digital pin  #2 on ESP8266
 #define DHTTYPE DHT22  // Sensor type
 
-#define STASSID "*****"
-#define STAPSK "*****"
-
 ESP8266WebServer server(80);
 
-const char* ssid = STASSID;
-const char* password = STAPSK;
+const char* ssid = SECRET_WIFI_SSID;
+const char* password = SECRET_WIFI_PASS;
 const char* hostname = "albert";
 
 DHT dht(DHTPIN, DHTTYPE);
