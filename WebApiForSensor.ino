@@ -24,8 +24,17 @@ float humidity, temperature_C;
 
 const int led = LED_BUILTIN;
 
-void handleRoot() {
+void openLed() {
   digitalWrite(led, 0);
+}
+
+void closeLed(int time_delay) {
+  delay(time_delay);
+  digitalWrite(led, 1);
+}
+
+void handleRoot() {
+  openLed();
   loopReadTemperature();
 
   String page = String(MAIN_page);  // Copy from PROGMEM into RAM
@@ -34,28 +43,24 @@ void handleRoot() {
   page.replace("%ip_address%", WiFi.localIP().toString());
 
   server.send(200, "text/html", page);
-  delay(500);
-  digitalWrite(led, 1);
+  closeLed(250);
 }
 
 void handleGetData() {
+  openLed();
   if (server.method() != HTTP_GET) {
-    digitalWrite(led, 0);
     server.send(405, "text/plain", "Method Not Allowed: " + getHttpMethodName());
-    delay(500);
-    digitalWrite(led, 1);
+    closeLed(500);
     return;
   }
   loopReadTemperature();
 
-  digitalWrite(led, 0);
   server.send(200, "application/json", getData());
-  delay(250);
-  digitalWrite(led, 1);
+  closeLed(250);
 }
 
 void handleNotFound() {
-  digitalWrite(led, 0);
+  openLed();
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += server.uri();
@@ -70,8 +75,7 @@ void handleNotFound() {
   }
 
   server.send(404, "text/plain", message);
-  delay(250);
-  digitalWrite(led, 1);
+  closeLed(250);
 }
 
 String getHttpMethodName() {
@@ -86,8 +90,7 @@ String getHttpMethodName() {
 }
 
 String getData() {
-  String data = "{\"humidity\": " + String(humidity) + ", " + "\"temperature\": " + String(temperature_C) + "}";
-  return data;
+  return "{\"humidity\": " + String(humidity) + ", " + "\"temperature\": " + String(temperature_C) + "}";
 }
 
 void setupNetwork() {
