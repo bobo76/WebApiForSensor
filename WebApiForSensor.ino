@@ -5,9 +5,9 @@
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include "arduino_secrets.h"
 #include "DHT.h"
+
+#include "arduino_secrets.h"
 #include "webpage.h"
 
 #define DHTPIN 5       // Digital pin  #2 on ESP8266
@@ -18,11 +18,25 @@ ESP8266WebServer server(80);
 const char* ssid = SECRET_WIFI_SSID;
 const char* password = SECRET_WIFI_PASS;
 const char* hostname = "albert";
-
-DHT dht(DHTPIN, DHTTYPE);
+const int led = LED_BUILTIN;
 float humidity, temperature_C;
 
-const int led = LED_BUILTIN;
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup(void) {
+  pinMode(led, OUTPUT);
+  Serial.begin(115200);
+
+  setupNetwork();
+  delay(2000);
+  setupSensor();
+}
+
+void loop(void) {
+  MDNS.update();
+
+  server.handleClient();
+}
 
 void openLed() {
   digitalWrite(led, 0);
@@ -33,9 +47,31 @@ void closeLed(int time_delay) {
   digitalWrite(led, 1);
 }
 
+void readSensorData() {
+  temperature_C = dht.readTemperature();
+  humidity = dht.readHumidity();
+
+  // Check for error reading
+  if (isnan(humidity) || isnan(temperature_C)) {
+    Serial.println(F(" DHT reading failed "));
+    Serial.print(humidity);
+    Serial.print(F(", "));
+    Serial.println(temperature_C);
+    return;
+  }
+
+  Serial.print(F("Humidity: "));
+  Serial.print(humidity);
+  Serial.println(F("%"));
+
+  Serial.print(F("Temperature: "));
+  Serial.print(temperature_C);
+  Serial.println(F("°C"));
+}
+
 void handleRoot() {
   openLed();
-  loopReadTemperature();
+  readSensorData();
 
   String page = String(MAIN_page);  // Copy from PROGMEM into RAM
   page.replace("%TEMP%", String(temperature_C, 1));
@@ -43,7 +79,7 @@ void handleRoot() {
   page.replace("%ip_address%", WiFi.localIP().toString());
 
   server.send(200, "text/html", page);
-  closeLed(250);
+  closeLed(200);
 }
 
 void handleGetData() {
@@ -53,29 +89,25 @@ void handleGetData() {
     closeLed(500);
     return;
   }
-  loopReadTemperature();
+  readSensorData();
 
   server.send(200, "application/json", getData());
-  closeLed(250);
+  closeLed(200);
 }
 
 void handleNotFound() {
   openLed();
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += getHttpMethodName();
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
+  String message = FPSTR(FILE_NOT_FOUND);
+  message.replace("%URI%", server.uri());
+  message.replace("%METHOD%", getHttpMethodName());
+  message.replace("%ARGS%", String(server.args()));
 
   for (uint8_t i = 0; i < server.args(); i++) {
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
 
   server.send(404, "text/plain", message);
-  closeLed(250);
+  closeLed(500);
 }
 
 String getHttpMethodName() {
@@ -129,41 +161,4 @@ void setupNetwork() {
 
 void setupSensor() {
   dht.begin();
-}
-
-void setup(void) {
-  pinMode(led, OUTPUT);
-  Serial.begin(115200);
-
-  setupNetwork();
-  delay(2000);
-  setupSensor();
-}
-
-void loopReadTemperature() {
-  temperature_C = dht.readTemperature();
-  humidity = dht.readHumidity();
-
-  // Check for error reading
-  if (isnan(humidity) || isnan(temperature_C)) {
-    Serial.println(F(" DHT reading failed "));
-    Serial.print(humidity);
-    Serial.print(F(", "));
-    Serial.println(temperature_C);
-    return;
-  }
-
-  Serial.print(F("Humidity: "));
-  Serial.print(humidity);
-  Serial.println(F("%"));
-
-  Serial.print(F("Temperature: "));
-  Serial.print(temperature_C);
-  Serial.println(F("°C"));
-}
-
-void loop(void) {
-  MDNS.update();
-
-  server.handleClient();
 }
